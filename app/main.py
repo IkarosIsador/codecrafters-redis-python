@@ -2,11 +2,21 @@ import asyncio
 
 
 async def handle_clients(reader, writer):
-    while True:
-        reader.read(1024)
-        writer.write(b"+PONG\r\n")
-        await writer.drain()
+    try:
+        while True:
+            data = await reader.read(256)
+            if not data:
+                break
 
+            print(b'+PONG\r\n')
+            writer.write(b'+PONG\r\n')
+            await writer.drain()
+
+    except Exception as e:
+        print(f"Error in handling client: {e}")
+    finally:
+        writer.close()
+        await writer.wait_closed()
 
 async def start_server():
     server = await asyncio.start_server(handle_clients, "localhost", 6379)
@@ -18,8 +28,7 @@ async def start_server():
 
 
 async def main():
-    # You can use print statements as follows for debugging, they'll be visible when running tests.
-    print("Logs from your program will appear here!")
+    # You can use print statements as follows for debugging, they'll be visible when running tests
     await start_server()
 
 
