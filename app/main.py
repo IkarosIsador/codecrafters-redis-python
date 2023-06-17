@@ -12,6 +12,7 @@ def encode_bulk_string(values):
 
 async def read_resp_array(header, reader):
     num_items = int(header[1:])
+    print(num_items)
 
     array = []
     for i in range(num_items):
@@ -26,7 +27,6 @@ async def read_resp_array(header, reader):
 async def handle_clients(reader, writer):
     while True:
         try:
-
             command = await reader.readline()
             if not command:
                 break
@@ -34,21 +34,21 @@ async def handle_clients(reader, writer):
             if command[0] == ord(b'*'):
                 array = await read_resp_array(command, reader)
 
-            if array[0] == "PING":
+            if array[0].lower() == "ping":
+                print(array)
                 writer.write(b"+PONG\r\n")
                 await writer.drain()
-            elif array[0] == "ECHO":
+
+            elif array[0].lower() == "echo":
                 response = encode_bulk_string(array[1:])
                 writer.write(response)
                 await writer.drain()
-            writer.close()
 
         except Exception as e:
             print(command)
             print(f"Error in handling client: {e}")
-        finally:
-            writer.close()
-            await writer.wait_closed()
+
+    writer.close()
 
 
 async def start_server():
