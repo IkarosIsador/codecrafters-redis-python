@@ -1,5 +1,28 @@
 import asyncio
 
+global_dict = {}
+
+
+def handle_set(key, value, *extra_args):
+    if extra_args:
+        response = b'-ERR wrong number of args'
+    else:
+        global_dict[key] = value
+        response = b'+OK\r\n'
+    return response
+
+
+def handle_get(key, *extra_args):
+    if extra_args:
+        response = b'-ERR wrong number of args'
+    else:
+        val = global_dict.get(key)
+        if val:
+            response = f"${len(val)}\r\n{val}\r\n".encode()
+        else:
+            response = b'$-1\r\n'
+    return response
+
 
 def encode_bulk_string(values):
     encoded_vals = []
@@ -12,7 +35,6 @@ def encode_bulk_string(values):
 
 async def read_resp_array(header, reader):
     num_items = int(header[1:])
-    print(num_items)
 
     array = []
     for i in range(num_items):
@@ -35,12 +57,18 @@ async def handle_clients(reader, writer):
                 array = await read_resp_array(command, reader)
 
             if array[0].lower() == "ping":
-                print(array)
                 writer.write(b"+PONG\r\n")
                 await writer.drain()
-
             elif array[0].lower() == "echo":
                 response = encode_bulk_string(array[1:])
+                writer.write(response)
+                await writer.drain()
+            elif array[0].lower() == "get":
+                response = handle_get(array[1])
+                writer.write(response)
+                await writer.drain()
+            elif array[0].lower() == "set":
+                response = handle_set(array[1], array[2])
                 writer.write(response)
                 await writer.drain()
 
