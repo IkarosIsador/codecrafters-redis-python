@@ -1,11 +1,17 @@
 import asyncio
+import time
 
 global_dict = {}
 
 
 def handle_set(key, value, *extra_args):
     if extra_args:
-        response = b'-ERR wrong number of args'
+        if extra_args[0][0].lower() == 'px':
+            expiry_time = time.time() + float(extra_args[0][1])/1000
+            global_dict[key] = [value, expiry_time]
+            response = b'+OK\r\n'
+        else:
+            response = b'-ERR wrong number of args'
     else:
         global_dict[key] = value
         response = b'+OK\r\n'
@@ -18,7 +24,14 @@ def handle_get(key, *extra_args):
     else:
         val = global_dict.get(key)
         if val:
-            response = f"${len(val)}\r\n{val}\r\n".encode()
+            if isinstance(val, list):
+                curr_time: float = time.time()
+                if curr_time < val[1]:
+                    response = f"${len(val[0])}\r\n{val[0]}\r\n".encode()
+                else:
+                    response = b'$-1\r\n'
+            else:
+                response = f"${len(val)}\r\n{val}\r\n".encode()
         else:
             response = b'$-1\r\n'
     return response
@@ -68,7 +81,10 @@ async def handle_clients(reader, writer):
                 writer.write(response)
                 await writer.drain()
             elif array[0].lower() == "set":
-                response = handle_set(array[1], array[2])
+                if len(array) > 3:
+                    response = handle_set(array[1], array[2], array[3:])
+                else:
+                    response = handle_set(array[1], array[2])
                 writer.write(response)
                 await writer.drain()
 
